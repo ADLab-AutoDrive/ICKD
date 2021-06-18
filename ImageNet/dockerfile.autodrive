@@ -1,0 +1,43 @@
+FROM reg.docker.alibaba-inc.com/had-perc/op-segnet:ailice20_ebase_cu102
+#FROM reg.docker.alibaba-inc.com/chlin/ailice_quant:segnet
+RUN apt-get clean && rm -r /var/lib/apt/lists/* && apt-key update && apt-get update && apt-get install -y --force-yes openssh-server
+RUN mkdir /var/run/sshd
+RUN echo 'root:123' | chpasswd
+RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+
+# SSH login fix. Otherwise user is kicked off after login
+RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
+
+ENV NOTVISIBLE "in users profile"
+RUN echo "export VISIBLE=now" >> /etc/profile
+
+RUN apt-get install -y --allow-unauthenticated iputils-ping wget unzip tmux
+#RUN cd /root && rm -rf tvm/python && rm -rf tvm/topi && wget https://pitaya-data-for-annotation.oss-cn-hangzhou.aliyuncs.com/software/tvm_patch.zip && unzip tvm_patch.zip && mv tvm_patch/* tvm/ && rm -f tvm_patch.zip
+RUN cd /root && rm -rf ailice && wget https://pitaya-data-for-annotation.oss-cn-hangzhou.aliyuncs.com/software/ailice.zip && unzip -o ailice.zip && rm -f ailice.zip
+#RUN pip install easydict opencv-python ptflops
+
+RUN /opt/conda/bin/pip config set global.index-url http://pypi.douban.com/simple/
+RUN /opt/conda/bin/pip config set install.trusted-host pypi.douban.com
+RUN /opt/conda/bin/pip install sklearn lightgbm pudb thop torchstat progress ruamel.yaml ipdb setuptools tabulate
+RUN /opt/conda/bin/pip install jupyterlab
+RUN /opt/conda/bin/pip install graphviz timm
+RUN /opt/conda/bin/jupyter notebook --generate-config
+
+
+
+RUN wget https://pitaya-data-for-annotation.oss-cn-hangzhou.aliyuncs.com/software/cocoapi-master.zip && unzip -o cocoapi-master.zip && cd cocoapi-master && cd PythonAPI && ls && /opt/conda/bin/python setup.py build_ext install
+ENV TERM=xterm
+ENV LC_ALL=C.UTF-8
+WORKDIR /workspace
+
+
+ADD ./ ./
+
+ADD train_autodrive.sh /bin/train 
+RUN chmod +x /bin/train
+
+ADD ./jupyter_guge_notebook_config.json  /root/.jupyter/jupyter_notebook_config.json
+ADD ./notebook /bin/notebook
+RUN chmod +x /bin/notebook
+
+CMD ["/bin/bash"]
