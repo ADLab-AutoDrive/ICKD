@@ -229,12 +229,10 @@ def main():
     elif opt.distill == 'ickd':
         opt.s_dim = feat_s[-2].shape[1]
         opt.t_dim = feat_t[-2].shape[1]
-        opt.feat_dim = opt.s_dim
+        opt.feat_dim = opt.t_dim
         criterion_kd = ICKDLoss(opt)
         module_list.append(criterion_kd.embed_s)
-        module_list.append(criterion_kd.embed_t)
         trainable_list.append(criterion_kd.embed_s)
-        trainable_list.append(criterion_kd.embed_t)
     elif opt.distill == 'rkd':
         criterion_kd = RKDLoss()
     elif opt.distill == 'pkt':
