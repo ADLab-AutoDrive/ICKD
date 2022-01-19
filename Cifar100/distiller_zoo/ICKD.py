@@ -32,6 +32,7 @@ class ICKDLoss(nn.Module):
     def __init__(self,opt):
         super(ICKDLoss, self).__init__()
         self.embed_s = Embed(opt.s_dim, opt.feat_dim)
+        self.embed_t = Embed(opt.s_dim, opt.feat_dim)
     
     def forward(self, g_s, g_t):
         loss =  [self.batch_loss(f_s, f_t) for f_s, f_t in zip(g_s, g_t)]

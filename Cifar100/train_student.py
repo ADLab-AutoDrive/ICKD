@@ -31,6 +31,7 @@ from crd.criterion import CRDLoss
 from helper.loops import train_distill as train, validate
 from helper.pretrain import init
 import numpy as np
+import random
 
 def unique_shape(s_shapes):
     n_s = []
@@ -80,6 +81,8 @@ def parse_option():
                                                                       'correlation', 'vid', 'crd', 'kdsvd', 'fsp',
                                                                       'rkd', 'pkt', 'abound', 'factor', 'nst'])
     parser.add_argument('--trial', type=str, default='1', help='trial id')
+    
+    parser.add_argument('--seed', type=int, default=0, help='random seed')
 
     parser.add_argument('-r', '--gamma', type=float, default=1, help='weight for classification')
     parser.add_argument('-a', '--alpha', type=float, default=None, help='weight balance for KD')
@@ -152,10 +155,23 @@ def load_teacher(model_path, n_cls):
     return model
 
 
+def set_random_seed(seed, deterministic=False):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    if deterministic:
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+
+
 def main():
     best_acc = 0
 
     opt = parse_option()
+    
+    # set random seeds
+    set_random_seed(opt.seed, True)
 
     # tensorboard logger
     logger = tb_logger.Logger(logdir=opt.tb_folder, flush_secs=2)
@@ -232,7 +248,9 @@ def main():
         opt.feat_dim = opt.t_dim
         criterion_kd = ICKDLoss(opt)
         module_list.append(criterion_kd.embed_s)
+        module_list.append(criterion_kd.embed_t)
         trainable_list.append(criterion_kd.embed_s)
+        trainable_list.append(criterion_kd.embed_t)
     elif opt.distill == 'rkd':
         criterion_kd = RKDLoss()
     elif opt.distill == 'pkt':
@@ -313,7 +331,7 @@ def main():
     if torch.cuda.is_available():
         module_list.cuda()
         criterion_list.cuda()
-        cudnn.benchmark = True
+        #cudnn.benchmark = True
 
     # validate teacher accuracy
     teacher_acc, _, _ = validate(val_loader, model_t, criterion_cls, opt)
